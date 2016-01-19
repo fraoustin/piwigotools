@@ -11,8 +11,9 @@ import piwigotools
 
 NAME = "piwigotools"
 VERSION = piwigotools.__version__
-DESC = "piwigotools description"
-URLPKG = "https://url/of/piwigotools/website"
+DESC = "mange your piwigo gallery by command piwigo"
+URLPKG = "https://github.com/fraoustin/piwigotools"
+
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
@@ -44,4 +45,9 @@ setup(
     install_requires=REQUIRED,
     url=URLPKG,
     classifiers=CLASSIFIED,
+    entry_points = {
+        'console_scripts': [
+            'piwigo = piwigotools.main:main',
+        ],
+    },
 )
