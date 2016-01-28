@@ -152,41 +152,53 @@ def main():
         if verb == "download":
             ana = Analyse('Analyze')
             ana.start()
-            piwigo = Piwigo(url=options.url)
-            piwigo.login(options.user, options.password)
-            # check
-            if not os.path.isdir(options.dest):
-                os.makedirs(options.dest)        
-            options.dest = os.path.abspath(options.dest)
-            piwigo.iscategory(options.category)
-            if options.category[-1] == '/' : options.category = options.category[:-1]
-            # treatment
-            run = Run(verb, options.thread)
-            kw = purge_kw(options.__dict__,('user','password','url','dest','category','thread'))
-            for img in piwigo.images(options.category, **kw):
-                run.add(piwigo.download, 
-                        ["%s/%s" % (options.category, str(img)), "%s/%s" % (options.dest, str(img))],
-                        kw)
+            try:
+                piwigo = Piwigo(url=options.url)
+                piwigo.login(options.user, options.password)
+                # check
+                if not os.path.isdir(options.dest):
+                    os.makedirs(options.dest)        
+                options.dest = os.path.abspath(options.dest)
+                piwigo.iscategory(options.category)
+                if options.category[-2:] == ' /' : options.category = options.category[:-2]
+                # treatment
+                run = Run(verb, options.thread)
+                kw = purge_kw(options.__dict__,('user','password','url','dest','category','thread'))
+                for img in piwigo.images(options.category, **kw):
+                    run.add(piwigo.download, 
+                            ["%s / %s" % (options.category, str(img)), "%s/%s" % (options.dest, str(img))],
+                            kw)
+            except Exception as e:
+                ana.stop()
+                raise e
             ana.stop()
             run.start()
             piwigo.logout()
+            if run.error:
+               parser.error(run.strerror) 
         if verb == "upload":
             ana = Analyse('Analyze')
             ana.start()
-            piwigo = Piwigo(url=options.url)
-            piwigo.login(options.user, options.password)
-            # check
-            piwigo.makedirs(options.category)
-            # treatment
-            run = Run(verb, options.thread)
-            kw = purge_kw(options.__dict__,('user','password','url','source','category','thread'))
-            for img in glob.glob(options.source):
-                run.add(piwigo.upload,
-                        [os.path.abspath(img), options.category], 
-                        kw)
-            ana.stop()
+            try:
+                piwigo = Piwigo(url=options.url)
+                piwigo.login(options.user, options.password)
+                # check
+                piwigo.makedirs(options.category)
+                # treatment
+                run = Run(verb, options.thread)
+                kw = purge_kw(options.__dict__,('user','password','url','source','category','thread'))
+                for img in glob.glob(options.source):
+                    run.add(piwigo.upload,
+                            [os.path.abspath(img), options.category], 
+                            kw)
+                ana.stop()
+            except Exception as e:
+                ana.stop()
+                raise e
             run.start()
             piwigo.logout()
+            if run.error:
+                parser.error(run.strerror)
     except Exception as e:
         parser.error(e)
         sys.exit(1)
@@ -194,6 +206,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-# TODO
-# verb sync
-# test python3: problem request return bytes and not str ... only str python2 or 3 and encoding?

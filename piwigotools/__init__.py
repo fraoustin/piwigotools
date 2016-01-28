@@ -60,8 +60,7 @@ class Piwigo(piwigo.Piwigo):
 
     @property
     def plan(self):
-        #return { (("/%s" % i["name"].replace(" / ","/")).encode('utf-8')).decode('utf-8') : i["id"] for i in self.pwg.categories.getList(recursive=True, fullname=True)['categories'] }
-        return { "/%s" % i["name"].replace(" / ","/") : i["id"] for i in self.pwg.categories.getList(recursive=True, fullname=True)['categories'] }
+        return { i["name"] : i["id"] for i in self.pwg.categories.getList(recursive=True, fullname=True)['categories'] }
 
 
     def _checkarg(fn):
@@ -70,7 +69,7 @@ class Piwigo(piwigo.Piwigo):
             # manage path
             if inspect.getargspec(fn).args.count('path'): 
                 pos = inspect.getargspec(fn).args.index('path') -1
-                if args[pos][-1] == '/' : args[pos] = args[pos][:-1]
+                if args[pos][-2:] == ' /' : args[pos] = args[pos][:-2]
             args = tuple(args)
             return fn(self, *args, **kw)
         return checking    
@@ -138,8 +137,8 @@ class Piwigo(piwigo.Piwigo):
 
     @_checkarg
     def isimage(self, path):
-        img = path.split('/')[-1]
-        path =  '/'.join(path.split('/')[:-1])
+        img = path.split(' / ')[-1]
+        path =  ' / '.join(path.split(' / ')[:-1])
         if img in self.images(path):
             return True
         return False
@@ -148,8 +147,8 @@ class Piwigo(piwigo.Piwigo):
     def idimage(self, path):
         if not self.isimage(path):
             raise PiwigoExistException("image %s not exist" % path)
-        img = path.split('/')[-1]
-        path =  '/'.join(path.split('/')[:-1])
+        img = path.split(' / ')[-1]
+        path =  ' / '.join(path.split(' / ')[:-1])
         return self.images(path)[img]["id"]
 
     @_checkarg
@@ -158,8 +157,8 @@ class Piwigo(piwigo.Piwigo):
         """
             create a category named path
         """
-        kw['name'] = path.split('/')[-1]
-        parent = '/'.join(path.split('/')[:-1])
+        kw['name'] = path.split(' / ')[-1]
+        parent = ' / '.join(path.split(' / ')[:-1])
         if parent and not self.iscategory(parent):
             raise PiwigoExistException("category %s not exist" % parent)
         if parent : kw['parent'] = self.plan[parent]
@@ -172,12 +171,12 @@ class Piwigo(piwigo.Piwigo):
         """
             recursive category create function
         """
-        pp = '/'
-        for p in path.split('/')[1:]:
+        pp = ''
+        for p in path.split(' / '):
             pp = '%s%s' % (pp, p)
             if not self.iscategory(pp):
                 self.mkdir(pp, **kw)
-            pp = '%s/' % pp
+            pp = '%s / ' % pp
         return self.idcategory(path)
 
     @_checkarg
@@ -210,8 +209,8 @@ class Piwigo(piwigo.Piwigo):
         """
         if not self.isimage(path):
             raise PiwigoException("image %s not exist" % path)
-        img = path.split('/')[-1]
-        path =  '/'.join(path.split('/')[:-1])
+        img = path.split(' / ')[-1]
+        path =  ' / '.join(path.split(' / ')[:-1])
         url = self.images(path)[img]['element_url']
         with open(dst, 'wb') as img:
             r = requests.get(url)

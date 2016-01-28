@@ -26,7 +26,6 @@ class Step(threading.Thread):
                 try:
                     call(*arg, **kw)
                 except Exception as e:
-                   print(e)
                    self.qerr.put([call, arg, kw, e]) 
                 self.qout.put([call, arg, kw])
             except queue.Empty:
@@ -40,6 +39,24 @@ class Run:
         self._qout = queue.Queue()
         self._qerr = queue.Queue()
         self._threads = [ Step(self._qin, self._qout, self._qerr) for i in range(cnt)] 
+
+    @property
+    def error(self):
+        """
+            return true if _qerr.qsize() > 0
+        """
+        if self._qerr.qsize() > 0:
+            return True
+        return False    
+
+    @property
+    def strerror(self):
+        ret = ""
+        while not self._qerr.empty():
+            call, arg, kw, e = self._qerr.get_nowait()
+            ret = "%s%s\n" % (ret, e) 
+        return ret    
+
 
     def add(self, call, arg, kw):
         self._qin.put([call, arg, kw])
