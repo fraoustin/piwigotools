@@ -60,8 +60,9 @@ class Piwigo(piwigo.Piwigo):
 
     @property
     def plan(self):
-        return { i["name"] : i["id"] for i in self.pwg.categories.getList(recursive=True, fullname=True)['categories'] }
-
+        plan = { i["name"] : i["id"] for i in self.pwg.categories.getList(recursive=True, fullname=True)['categories'] }
+        plan[""] = 0
+        return plan
 
     def _checkarg(fn):
         def checking(self, *args, **kw):

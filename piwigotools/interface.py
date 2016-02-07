@@ -70,11 +70,12 @@ class Run:
                                     ' ', 
                                     progressbar.Timer()],
                             maxval=self._qin.qsize()).start()
-        for thread in self._threads:
-            thread.start()
-        while not self._qout.full():
-            time.sleep(0.1) # sleep 0.1s
-            pbar.update(self._qout.qsize())
+        if self._qin.qsize():
+            for thread in self._threads:
+                thread.start()
+            while not self._qout.full():
+                time.sleep(0.1) # sleep 0.1s
+                pbar.update(self._qout.qsize())
         pbar.finish()    
         return self._qerr
 

@@ -35,7 +35,7 @@ VERBS = {
                 "description" : "upload file in piwigo gallery",
                 "arg" : 
                     {
-                        "category" : {"type":"string", "default":"/", "help":"destination category of piwigo gallery"},
+                        "category" : {"type":"string", "default":"", "help":"destination category of piwigo gallery"},
                         "source" : {"type":"string", "default":"*.jpg", "help":"path of upload picture"},
                         "url" :  {"type":"string", "default":"", "help":"url of piwigo gallery"},
                         "user" :  {"type":"string", "default":"", "help":"user of piwigo gallery"},
@@ -49,7 +49,7 @@ VERBS = {
                 "description" : "download image from piwigo gallery",
                 "arg" : 
                     {
-                        "category" : {"type":"string", "default":"/", "help":"source category of piwigo gallery"},
+                        "category" : {"type":"string", "default":"", "help":"source category of piwigo gallery"},
                         "dest" : {"type":"string", "default":".", "help":"path of destination"},
                         "url" :  {"type":"string", "default":"", "help":"url of piwigo gallery"},
                         "user" :  {"type":"string", "default":"", "help":"user of piwigo gallery"},
@@ -63,7 +63,7 @@ VERBS = {
                 "description" : "synchronization between path and piwigo gallery",
                 "arg" : 
                     {
-                        "category" : {"type":"string", "default":"/", "help":"category of piwigo gallery"},
+                        "category" : {"type":"string", "default":"", "help":"category of piwigo gallery"},
                         "source" : {"type":"string", "default":".", "help":"path of picture"},
                         "url" :  {"type":"string", "default":"", "help":"url of piwigo gallery"},
                         "user" :  {"type":"string", "default":"", "help":"user of piwigo gallery"},
@@ -191,6 +191,28 @@ def main():
                     run.add(piwigo.upload,
                             [os.path.abspath(img), options.category], 
                             kw)
+                ana.stop()
+            except Exception as e:
+                ana.stop()
+                raise e
+            run.start()
+            piwigo.logout()
+            if run.error:
+                parser.error(run.strerror)
+        if verb == "sync":
+            ana = Analyse('Analyze')
+            ana.start()
+            try:
+                piwigo = Piwigo(url=options.url)
+                piwigo.login(options.user, options.password)
+                # check
+                options.source = os.path.abspath(options.source)
+                if not os.path.isdir(options.source):
+                    raise Exception("%s is not directory" % options.source)
+                piwigo.iscategory(options.category)
+                # treatment
+                run = Run(verb, options.thread)
+                kw = purge_kw(options.__dict__,('user','password','url','source','category','thread'))
                 ana.stop()
             except Exception as e:
                 ana.stop()
