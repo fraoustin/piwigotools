@@ -3,6 +3,7 @@
 import sys
 import os, os.path
 import glob
+import fnmatch
 import pprint
 
 try:
@@ -69,6 +70,7 @@ VERBS = {
                         "user" :  {"type":"string", "default":"", "help":"user of piwigo gallery"},
                         "password" :  {"type":"string", "default":"", "help":"password of piwigo gallery"},
                         "thread" :  {"type":"int", "default":"1", "help":"number of thread"},
+                        "extension" :  {"type":"string", "default":"*.JPG", "help":"extension for upload"},
                     },
             },
          "ws":
@@ -213,6 +215,13 @@ def main():
                 # treatment
                 run = Run(verb, options.thread)
                 kw = purge_kw(options.__dict__,('user','password','url','source','category','thread'))
+                for root, dirnames, filenames in os.walk(options.source):
+                    for filename in fnmatch.filter(filenames, options.extension):
+                        path = os.path.abspath(os.path.join(root, filename))[len(options.source)+1:]
+                        if not piwigo.isimage(path.replace(os.sep, ' / ')):
+                            category = ' / '.join(path.split(os.sep)[:-1])
+                            run.add(piwigo.makedirs,[category,], kw)
+                            run.add(piwigo.upload,[path, category], kw)
                 ana.stop()
             except Exception as e:
                 ana.stop()

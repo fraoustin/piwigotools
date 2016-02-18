@@ -114,7 +114,10 @@ class Piwigo(piwigo.Piwigo):
         """
             return list of file name image for path
         """
-        kw["cat_id"]= self.idcategory(path)
+        try:
+            kw["cat_id"]= self.idcategory(path)
+        except PiwigoExistException:
+            return {}
         kw["per_page"] = 200
         kw["page"] = 0
         imgs = {}
