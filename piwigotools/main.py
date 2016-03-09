@@ -212,6 +212,8 @@ def main():
                 if not os.path.isdir(options.source):
                     raise Exception("%s is not directory" % options.source)
                 piwigo.iscategory(options.category)
+                if len(options.category) and options.category[-1] != '/' and options.category[:-3] != ' / ':
+                    options.category = options.category+ ' / '
                 # treatment
                 run = Run(verb, options.thread)
                 kw = purge_kw(options.__dict__,('user','password','url','source','category','thread'))
@@ -221,22 +223,24 @@ def main():
                     for ext in options.extension.split(',')[1:]:
                         filtering = filtering + fnmatch.filter(filenames, ext)
                     for filename in filtering:
-                        path = os.path.abspath(os.path.join(root, filename))[len(options.source)+1:]
-                        if not piwigo.isimage(path.replace(os.sep, ' / ')):
-                            category = ' / '.join(path.split(os.sep)[:-1])
+                        pathrel = os.path.abspath(os.path.join(root, filename))[len(options.source)+1:]
+                        pathabs = os.path.abspath(os.path.join(root, filename))
+                        category = options.category + ' / '.join(pathrel.split(os.sep)[:-1])
+                        if not piwigo.isimage(category + ' / ' + filename):
                             run.add(piwigo.makedirs,[category,], kw)
-                            run.add(piwigo.upload,[path, category], kw)
+                            run.add(piwigo.upload,[pathabs, category], kw)
                 # piwigo -> local
-                for category, item in piwigo.plan.iteritems():
-                    path = os.path.join(options.source, *category.split(' / '))
-                    if not os.path.exists(path):
-                        os.makedirs(path)
-                    for img in piwigo.images(category):
-                        pathimg = os.path.join(path, img)
-                        if not os.path.exists(pathimg):
-                            run.add(piwigo.download, 
-                                ["%s / %s" % (category, str(img)), pathimg],
-                                kw)
+                #for category, item in piwigo.plan.iteritems():
+                #    if options.category == category[0:len(options.category)]:
+                #        path = os.path.join(options.source, *category[len(options.category):].split(' / '))
+                #        if not os.path.exists(path):
+                #            os.makedirs(path)
+                #        for img in piwigo.images(category):
+                #            pathimg = os.path.join(path, img)
+                #            if not os.path.exists(pathimg):
+                #                run.add(piwigo.download, 
+                #                    ["%s / %s" % (category, str(img)), pathimg],
+                #                    kw)
                 ana.stop()
             except Exception as e:
                 ana.stop()
