@@ -1,3 +1,8 @@
+0.1.0
+=====
+
+- add verb sync-up and sync-down
+
 0.0.2
 =====
 
