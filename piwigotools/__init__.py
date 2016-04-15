@@ -5,7 +5,7 @@
     Module piwigotools
 """
 
-__version_info__ = (0, 0, 2)
+__version_info__ = (0, 1, 0)
 __version__ = '.'.join([str(val) for val in  __version_info__])
 
 import inspect
@@ -13,6 +13,9 @@ import inspect
 import requests
 
 import piwigo
+
+FORCE_PLAN = False
+FORCE_IMAGES = False
 
 class LoginException(Exception):
 
@@ -41,6 +44,8 @@ class Piwigo(piwigo.Piwigo):
     def __init__(self, url):
         piwigo.Piwigo.__init__(self, url)
         self._login = False
+        self._plan = {}
+        self._images = {}
 
     def login(self, username, password):
         """
@@ -60,8 +65,11 @@ class Piwigo(piwigo.Piwigo):
 
     @property
     def plan(self):
-        return { i["name"] : i["id"] for i in self.pwg.categories.getList(recursive=True, fullname=True)['categories'] }
-
+        if FORCE_PLAN or not len(self._plan): 
+            plan = { i["name"] : i["id"] for i in self.pwg.categories.getList(recursive=True, fullname=True)['categories'] }
+            plan[""] = 0
+            self._plan = plan
+        return self._plan
 
     def _checkarg(fn):
         def checking(self, *args, **kw):
@@ -113,18 +121,24 @@ class Piwigo(piwigo.Piwigo):
         """
             return list of file name image for path
         """
-        kw["cat_id"]= self.idcategory(path)
-        kw["per_page"] = 200
-        kw["page"] = 0
-        imgs = {}
-        loop = True
-        while loop:
-            req = self.pwg.categories.getImages(**kw)
-            for img in req["images"]:
-                imgs[img["file"]] = img
-            if req["paging"]["count"] < req["paging"]["per_page"]:
-                loop = False
-        return imgs
+        if FORCE_IMAGES or path not in self._images:
+            try:
+                kw["cat_id"]= self.idcategory(path)
+            except PiwigoExistException:
+                return {}
+            kw["per_page"] = 200
+            kw["page"] = 0
+            imgs = {}
+            loop = True
+            while loop:
+                req = self.pwg.categories.getImages(**kw)
+                for img in req["images"]:
+                    imgs[img["file"]] = img
+                if req["paging"]["count"] < req["paging"]["per_page"]:
+                    loop = False
+                kw["page"] = kw["page"] + 1    
+            self._images[path] = imgs
+        return self._images[path]
 
     @_checkarg
     def sublevels(self, path, **kw):
@@ -145,11 +159,13 @@ class Piwigo(piwigo.Piwigo):
     
     @_checkarg
     def idimage(self, path):
-        if not self.isimage(path):
-            raise PiwigoExistException("image %s not exist" % path)
         img = path.split(' / ')[-1]
         path =  ' / '.join(path.split(' / ')[:-1])
-        return self.images(path)[img]["id"]
+        try:
+            return self.images(path)[img]["id"]
+        except:
+            raise PiwigoExistException("image %s not exist" % path)
+ 
 
     @_checkarg
     @_checklogin
@@ -162,7 +178,9 @@ class Piwigo(piwigo.Piwigo):
         if parent and not self.iscategory(parent):
             raise PiwigoExistException("category %s not exist" % parent)
         if parent : kw['parent'] = self.plan[parent]
-        self.pwg.categories.add(**kw)
+        id = self.pwg.categories.add(**kw)['id']
+        if not FORCE_PLAN:
+            self._plan[path] = id
         return self.idcategory(path)
 
     @_checkarg
@@ -186,6 +204,8 @@ class Piwigo(piwigo.Piwigo):
             remove (delete) category
         """
         self.pwg.categories.delete(category_id=self.idcategory(path), pwg_token=self.token, **kw)
+        if not FORCE_PLAN and path in self._plan:
+            del self._plan[path]
         return True
 
     @_checkarg
@@ -197,9 +217,12 @@ class Piwigo(piwigo.Piwigo):
         kw["image"] = image
         if len(path):
             if not self.iscategory(path):
-                raise PiwigoExistException("category %s not exist" % parent)
+                raise PiwigoExistException("category %s not exist" % path)
             kw['category'] = self.idcategory(path)
-        return self.pwg.images.addSimple(**kw)['image_id']
+        res =  self.pwg.images.addSimple(**kw)['image_id']
+        if ' / '.join(path.split(' / ')[:-1]) in self._images:
+            del self._images[' / '.join(path.split(' / ')[:-1])] 
+        return res
 
     @_checkarg
     @_checklogin
@@ -227,4 +250,6 @@ class Piwigo(piwigo.Piwigo):
         if not self.isimage(path):
             raise PiwigoException("image %s not exist" % path)
         self.pwg.images.delete(image_id= self.idimage(path), pwg_token=self.token)
+        if ' / '.join(path.split(' / ')[:-1]) in self._images:
+            del self._images[' / '.join(path.split(' / ')[:-1])] 
         return True
