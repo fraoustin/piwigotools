@@ -3,6 +3,7 @@
 import sys
 import os, os.path
 import glob
+import fnmatch
 import pprint
 
 try:
@@ -35,7 +36,7 @@ VERBS = {
                 "description" : "upload file in piwigo gallery",
                 "arg" : 
                     {
-                        "category" : {"type":"string", "default":"/", "help":"destination category of piwigo gallery"},
+                        "category" : {"type":"string", "default":"", "help":"destination category of piwigo gallery"},
                         "source" : {"type":"string", "default":"*.jpg", "help":"path of upload picture"},
                         "url" :  {"type":"string", "default":"", "help":"url of piwigo gallery"},
                         "user" :  {"type":"string", "default":"", "help":"user of piwigo gallery"},
@@ -49,7 +50,7 @@ VERBS = {
                 "description" : "download image from piwigo gallery",
                 "arg" : 
                     {
-                        "category" : {"type":"string", "default":"/", "help":"source category of piwigo gallery"},
+                        "category" : {"type":"string", "default":"", "help":"source category of piwigo gallery"},
                         "dest" : {"type":"string", "default":".", "help":"path of destination"},
                         "url" :  {"type":"string", "default":"", "help":"url of piwigo gallery"},
                         "user" :  {"type":"string", "default":"", "help":"user of piwigo gallery"},
@@ -57,18 +58,34 @@ VERBS = {
                         "thread" :  {"type":"int", "default":"1", "help":"number of thread"},
                     },
             },
-        "sync":
+        "sync-up":
             { 
-                "usage" : "usage for verb sync",
-                "description" : "synchronization between path and piwigo gallery",
+                "usage" : "usage for verb sync-up",
+                "description" : "synchronization local path to piwigo gallery",
                 "arg" : 
                     {
-                        "category" : {"type":"string", "default":"/", "help":"category of piwigo gallery"},
+                        "category" : {"type":"string", "default":"", "help":"category of piwigo gallery"},
                         "source" : {"type":"string", "default":".", "help":"path of picture"},
                         "url" :  {"type":"string", "default":"", "help":"url of piwigo gallery"},
                         "user" :  {"type":"string", "default":"", "help":"user of piwigo gallery"},
                         "password" :  {"type":"string", "default":"", "help":"password of piwigo gallery"},
                         "thread" :  {"type":"int", "default":"1", "help":"number of thread"},
+                        "extension" :  {"type":"string", "default":"*.JPG,*.jpg,*.PNG,*.png,*.JPEG,*.jpeg,*.GIF,*.gif", "help":"extension for upload"},
+                    },
+            },
+       "sync-down":
+            { 
+                "usage" : "usage for verb sync-down",
+                "description" : "synchronization piwigo gallery to local path",
+                "arg" : 
+                    {
+                        "category" : {"type":"string", "default":"", "help":"category of piwigo gallery"},
+                        "source" : {"type":"string", "default":".", "help":"path of picture"},
+                        "url" :  {"type":"string", "default":"", "help":"url of piwigo gallery"},
+                        "user" :  {"type":"string", "default":"", "help":"user of piwigo gallery"},
+                        "password" :  {"type":"string", "default":"", "help":"password of piwigo gallery"},
+                        "thread" :  {"type":"int", "default":"1", "help":"number of thread"},
+                        "extension" :  {"type":"string", "default":"*.JPG,*.jpg,*.PNG,*.png,*.JPEG,*.jpeg,*.GIF,*.gif", "help":"extension for upload"},
                     },
             },
          "ws":
@@ -166,7 +183,7 @@ def main():
                 kw = purge_kw(options.__dict__,('user','password','url','dest','category','thread'))
                 for img in piwigo.images(options.category, **kw):
                     run.add(piwigo.download, 
-                            ["%s / %s" % (options.category, str(img)), "%s/%s" % (options.dest, str(img))],
+                            ["%s / %s" % (options.category, str(img)), "%s%s%s" % (options.dest, os.path.sep, str(img))],
                             kw)
             except Exception as e:
                 ana.stop()
@@ -191,6 +208,78 @@ def main():
                     run.add(piwigo.upload,
                             [os.path.abspath(img), options.category], 
                             kw)
+                ana.stop()
+            except Exception as e:
+                ana.stop()
+                raise e
+            run.start()
+            piwigo.logout()
+            if run.error:
+                parser.error(run.strerror)
+        if verb == "sync-up":
+            ana = Analyse('Analyze')
+            ana.start()
+            try:
+                piwigo = Piwigo(url=options.url)
+                piwigo.login(options.user, options.password)
+                # check
+                options.source = os.path.abspath(options.source)
+                if not os.path.isdir(options.source):
+                    raise Exception("%s is not directory" % options.source)
+                piwigo.iscategory(options.category)
+                if len(options.category) and options.category[-1] != '/' and options.category[:-3] != ' / ':
+                    options.category = options.category+ ' / '
+                # treatment
+                run = Run(verb, options.thread)
+                kw = purge_kw(options.__dict__,('user','password','url','source','category','thread'))
+                # local -> piwigo
+                for root, dirnames, filenames in os.walk(options.source):
+                    filtering = fnmatch.filter(filenames, options.extension.split(',')[0])
+                    for ext in options.extension.split(',')[1:]:
+                        filtering = filtering + fnmatch.filter(filenames, ext)
+                    for filename in filtering:
+                        pathrel = os.path.abspath(os.path.join(root, filename))[len(options.source)+1:]
+                        pathabs = os.path.abspath(os.path.join(root, filename))
+                        category = options.category + ' / '.join(pathrel.split(os.sep)[:-1])
+                        if not piwigo.isimage(category + ' / ' + filename):
+                            run.add(piwigo.makedirs,[category,], kw)
+                            run.add(piwigo.upload,[pathabs, category], kw)
+                ana.stop()
+            except Exception as e:
+                ana.stop()
+                raise e
+            run.start()
+            piwigo.logout()
+            if run.error:
+                parser.error(run.strerror)
+        if verb == "sync-down":
+            ana = Analyse('Analyze')
+            ana.start()
+            try:
+                piwigo = Piwigo(url=options.url)
+                piwigo.login(options.user, options.password)
+                # check
+                options.source = os.path.abspath(options.source)
+                if not os.path.isdir(options.source):
+                    raise Exception("%s is not directory" % options.source)
+                piwigo.iscategory(options.category)
+                if len(options.category) and options.category[-1] != '/' and options.category[:-3] != ' / ':
+                    options.category = options.category+ ' / '
+                # treatment
+                run = Run(verb, options.thread)
+                kw = purge_kw(options.__dict__,('user','password','url','source','category','thread'))
+                # piwigo -> local
+                for category, item in piwigo.plan.iteritems():
+                    if options.category == category[0:len(options.category)]:
+                        path = os.path.join(options.source, *category[len(options.category):].split(' / '))
+                        if not os.path.exists(path):
+                            os.makedirs(path)
+                        for img in piwigo.images(category):
+                            pathimg = os.path.join(path, img)
+                            if not os.path.exists(pathimg):
+                                run.add(piwigo.download, 
+                                    ["%s / %s" % (category, str(img)), pathimg],
+                                    kw)
                 ana.stop()
             except Exception as e:
                 ana.stop()
