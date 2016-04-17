@@ -20,7 +20,8 @@ USAGE = """piwigo verb --param1=value1 --param2=value2
 verb list
 - upload
 - download
-- sync
+- sync-up
+- sync-down
 - ws
 
 to get help: piwigo verb --help

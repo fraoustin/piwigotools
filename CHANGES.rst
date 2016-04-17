@@ -1,3 +1,8 @@
+0.1.1
+=====
+
+- correction of help for piwigotools.main
+
 0.1.0
 =====
 
