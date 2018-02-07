@@ -134,7 +134,7 @@ class Piwigo(piwigo.Piwigo):
                 req = self.pwg.categories.getImages(**kw)
                 for img in req["images"]:
                     imgs[img["file"]] = img
-                if int("paging"]["count"]) < req["paging"]["per_page"]:
+                if int(req["paging"]["count"]) < req["paging"]["per_page"]:
                     loop = False
                 kw["page"] = kw["page"] + 1    
             self._images[path] = imgs
