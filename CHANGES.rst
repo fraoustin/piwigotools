@@ -1,3 +1,8 @@
+0.1.2
+=====
+
+- correction per page to int
+
 0.1.1
 =====
 
