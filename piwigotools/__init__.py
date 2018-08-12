@@ -5,7 +5,7 @@
     Module piwigotools
 """
 
-__version_info__ = (0, 1, 2)
+__version_info__ = (0, 1, 3)
 __version__ = '.'.join([str(val) for val in  __version_info__])
 
 import inspect
@@ -134,7 +134,7 @@ class Piwigo(piwigo.Piwigo):
                 req = self.pwg.categories.getImages(**kw)
                 for img in req["images"]:
                     imgs[img["file"]] = img
-                if int(req["paging"]["count"]) < req["paging"]["per_page"]:
+                if len(req["images"]) < req["paging"]["per_page"]:
                     loop = False
                 kw["page"] = kw["page"] + 1    
             self._images[path] = imgs
