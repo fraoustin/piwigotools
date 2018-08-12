@@ -5,7 +5,7 @@
     Module piwigotools
 """
 
-__version_info__ = (0, 1, 3)
+__version_info__ = (0, 3, 0)
 __version__ = '.'.join([str(val) for val in  __version_info__])
 
 import inspect
